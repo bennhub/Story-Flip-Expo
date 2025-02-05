@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, PlusCircle, X, Save, Loader, ImagePlus, Clock, Play, Pause, Edit, Share, Download } from 'lucide-react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
-import { Filesystem, Directory } from '@capacitor/filesystem';
+import * as FileSystem from 'expo-file-system';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import html2canvas from 'html2canvas';
@@ -582,7 +582,6 @@ const StorySlider = () => {
 const loadFFmpeg = async () => {
   try {
     console.log('Starting FFmpeg load...');
-    // Remove the progress callback from the load options
     await ffmpeg.load({
       log: true
     });
@@ -604,9 +603,7 @@ const handleSaveSession = async (resolution = '1080x1920') => { // Added resolut
     setProgressMessage('Preparing to export video...');
     setSaveProgress(0);
 
-    if (!ffmpeg.loaded) {
-      await loadFFmpeg();
-    }
+    await loadFFmpeg();
 
     console.log('Processing media files...');
     const processedFiles = [];
@@ -623,10 +620,10 @@ const handleSaveSession = async (resolution = '1080x1920') => { // Added resolut
           const inputName = `input${i}.mp4`;
           const outputName = `processed${i}.mp4`;
           
-          await ffmpeg.writeFile(inputName, await fetchFile(story.url));
+          await FileSystem.writeAsStringAsync(inputName, await fetchFile(story.url));
           
           // Added width and height from resolution
-          await ffmpeg.exec([
+          FFmpegKit.executeAsync([
             '-ss', `${story.startTime || 0}`,
             '-t', `${duration}`,
             '-i', inputName,
@@ -656,10 +653,10 @@ const handleSaveSession = async (resolution = '1080x1920') => { // Added resolut
           const inputName = `input${i}.png`;
           const outputName = `processed${i}.mp4`;
           
-          await ffmpeg.writeFile(inputName, await fetchFile(story.url));
+          await FileSystem.writeAsStringAsync(inputName, await fetchFile(story.url));
           
           // Added width and height from resolution
-          await ffmpeg.exec([
+          await FFmpegKit.executeAsync([
             '-loop', '1',
             '-i', inputName,
             '-c:v', 'libx264',
@@ -688,11 +685,11 @@ const handleSaveSession = async (resolution = '1080x1920') => { // Added resolut
             canvas.toBlob(resolve, 'image/png')
           );
         
-          await ffmpeg.writeFile(templateName, await fetchFile(templateBlob));
-          await ffmpeg.writeFile(inputName, await fetchFile(story.url));
+          await FileSystem.writeAsStringAsync(templateName, await fetchFile(templateBlob));
+          await FileSystem.writeAsStringAsync(inputName, await fetchFile(story.url));
         
           // Added width and height considerations
-          await ffmpeg.exec([
+          await FFmpegKit.executeAsync([
             '-loop', '1',
             '-i', templateName,
             '-i', inputName,
@@ -724,14 +721,14 @@ const handleSaveSession = async (resolution = '1080x1920') => { // Added resolut
         .map(file => `file '${file.name}'`)
         .join('\n');
       
-      await ffmpeg.writeFile('list.txt', fileList);
+      await FileSystem.writeAsStringAsync('list.txt', fileList);
     
       setProgressMessage('Creating final video...');
       setSaveProgress(90);  // Start final phase at 90%
       console.log('Starting concatenation...');
       
       // Improved concatenation settings
-      await ffmpeg.exec([
+      await FFmpegKit.executeAsync([
         '-f', 'concat',
         '-safe', '0',
         '-i', 'list.txt',
